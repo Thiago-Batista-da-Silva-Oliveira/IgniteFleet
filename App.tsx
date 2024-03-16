@@ -1,7 +1,7 @@
 import { ThemeProvider } from "styled-components/native";
 import { SignIn } from "./src/screens/SignIn";
 import theme from "./src/theme";
-import {} from '@env'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import {
   useFonts,
   Roboto_400Regular,
@@ -11,7 +11,7 @@ import { Loading } from "./src/components/Loading";
 import { StatusBar } from "react-native";
 import { AppProvider, UserProvider } from '@realm/react'
 import { ANDROID_CLIENT_ID, REALM_APP_ID } from '@env';
-import { Home } from "./src/screens/Home";
+import { Routes } from "./src/routes";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -24,14 +24,16 @@ export default function App() {
   return (
     <AppProvider id={REALM_APP_ID}>
     <ThemeProvider theme={theme}>
+      <SafeAreaProvider>
       <StatusBar
         barStyle="light-content"
         backgroundColor="transparent"
         translucent
       />
       <UserProvider fallback={SignIn}>
-         <Home />
+         <Routes />
       </UserProvider>
+    </SafeAreaProvider>
     </ThemeProvider>
     </AppProvider>
   );
