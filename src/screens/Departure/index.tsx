@@ -16,6 +16,7 @@ import { licensePlateValidate } from "../../utils/licensePlateValidate";
 import { useRealm } from "../../libs/realm";
 import { Historic } from "../../libs/realm/schemas/Historic";
 import { useNavigation } from "@react-navigation/native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 export function Departure() {
   const [description, setDescription] = useState("");
@@ -62,9 +63,7 @@ export function Departure() {
   return (
     <Container>
       <Header title="Saída" />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={keyboardAvoidingViewBehavior}
+      <KeyboardAwareScrollView extraHeight={100}
       >
         <ScrollView>
           <Content>
@@ -88,7 +87,7 @@ export function Departure() {
             <Button isLoading={isRegistering} onPress={handleDeparture} title="Registrar Saída" />
           </Content>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Container>
   );
 }
