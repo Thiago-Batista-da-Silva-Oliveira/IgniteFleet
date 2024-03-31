@@ -7,8 +7,10 @@ import { useQuery, useRealm } from "../../libs/realm";
 import { Historic } from "../../libs/realm/schemas/Historic";
 import { useEffect, useState } from "react";
 import { Alert, FlatList } from "react-native";
+import Realm from "realm";
 import { HistoricCard, HistoricCardProps } from "../../components/HistoricCard";
 import { useUser } from "@realm/react";
+import { getLastSyncTimestamp, saveLastSyncTimeSstamp } from "../../libs/asyncStorage/syncStorage";
 
 export function Home() {
   const [vehicleInUse, setVehicleInUse] = useState<Historic | null>(null);
@@ -38,17 +40,18 @@ export function Home() {
     }
   };
 
-  function fetchHistoric() {
+  async function fetchHistoric() {
     try {
       const response = historic.filtered(
         "status = 'arrival' SORT(created_at DESC)"
       );
+      const lastSync = await getLastSyncTimestamp();
       const formattedHistoric = response.map((item) => {
         return ({
           id: item._id!.toString(),
           created: dayjs(item.created_at).format("[Saída em] DD/MM/YYYY [às] HH:mm"),
           licensePlate: item.license_plate,
-          isSync: false,
+          isSync: lastSync ? lastSync > item.updated_at!.getTime() : false,
         })
       })
       setVehicleHistoric(formattedHistoric);
@@ -61,6 +64,14 @@ export function Home() {
   function handleHistoricDetails(id: string) {
     navigate('arrival', { id })
   }
+
+  async function progressNotification(transfered: number, transferable: number) {
+    const percentage = (transfered / transferable) * 100;
+    if (percentage === 100) {
+      await saveLastSyncTimeSstamp();
+      fetchHistoric();
+    }
+  };
 
   useEffect(() => {
     fetchVehicleInUse();
@@ -88,6 +99,18 @@ export function Home() {
           });
       })
   }, [realm]);
+
+  useEffect(() => {
+   const syncSession = realm.syncSession;
+   if (!syncSession) return;
+   syncSession.addProgressNotification(
+    Realm.ProgressDirection.Upload,
+    Realm.ProgressMode.ReportIndefinitely,
+    progressNotification,
+   )
+
+   return () => syncSession.removeProgressNotification(progressNotification);
+  }, []);
 
   return (
     <Container>
