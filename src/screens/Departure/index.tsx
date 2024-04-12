@@ -5,7 +5,9 @@ import { useUser } from '@realm/react';
 import { LicensePlateInput } from "../../components/LicensePlateInput";
 import { TextAreaInput } from "../../components/TextAreaInput";
 import { Container, Content, Message } from "./styles";
-import { useForegroundPermissions,
+import { 
+   useForegroundPermissions,
+   requestBackgroundPermissionsAsync,
    watchPositionAsync,
    LocationAccuracy,
    LocationSubscription,
@@ -46,7 +48,7 @@ export function Departure() {
   const descriptionRef = useRef<TextInput>(null);
   const licensePlateRef = useRef<TextInput>(null);
 
-  const handleDeparture = () => {
+  const handleDeparture = async () => {
     try {
       if (licensePlateValidate(lincesePlate)) {
         licensePlateRef.current?.focus();
@@ -57,7 +59,16 @@ export function Departure() {
         descriptionRef.current?.focus();
         return Alert.alert("Campo obrigatório", "Por favor, insira a finalidade");
       }
+      if (!currentCoords?.latitude || !currentCoords?.longitude) {
+        return Alert.alert("Localização não encontrada", "Por favor, tente novamente");
+      }
       setIsRegistering(true);
+      const backgroundPermissions = await requestBackgroundPermissionsAsync();
+
+      if (!backgroundPermissions.granted) {
+        setIsRegistering(false);
+        return Alert.alert("Permissão de localização", "Você precisa permitir o acesso à localização para utilizar essa funcionalidade");
+      }
       realm.write(() => {
         realm.create("Historic", Historic.generate({
           user_id: user!.id,
