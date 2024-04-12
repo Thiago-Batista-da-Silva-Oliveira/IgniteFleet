@@ -18,6 +18,7 @@ import { Historic } from "../../libs/realm/schemas/Historic";
 import { BSON } from "realm";
 import { Alert } from "react-native";
 import { getLastSyncTimestamp } from "../../libs/asyncStorage/syncStorage";
+import { stopLocationTask } from "../../tasks/backgroundLocationTask";
 
 type RouteParamsProps = {
   id: string;
@@ -52,7 +53,7 @@ export function Arrival() {
     goBack();
   }
 
-  function handleArrivalRegister() {
+  async function handleArrivalRegister() {
     try {
       if (!historic) {
         return Alert.alert(
@@ -60,6 +61,7 @@ export function Arrival() {
           "Não foi possível obter os dados do veículo"
         );
       }
+      await stopLocationTask();
       realm.write(() => {
         historic.status = "arrival";
         historic.updated_at = new Date();

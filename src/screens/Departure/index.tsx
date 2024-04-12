@@ -30,6 +30,7 @@ import { Loading } from "../../components/Loading";
 import { LocationInfo } from "../../components/LocationInfo";
 import { Car } from "phosphor-react-native";
 import { Map } from "../../components/Map";
+import { startLocationTask } from "../../tasks/backgroundLocationTask";
 
 export function Departure() {
   const [description, setDescription] = useState("");
@@ -69,6 +70,8 @@ export function Departure() {
         setIsRegistering(false);
         return Alert.alert("Permissão de localização", "Você precisa permitir o acesso à localização para utilizar essa funcionalidade");
       }
+
+      await startLocationTask();
       realm.write(() => {
         realm.create("Historic", Historic.generate({
           user_id: user!.id,
