@@ -19,6 +19,9 @@ import { BSON } from "realm";
 import { Alert } from "react-native";
 import { getLastSyncTimestamp } from "../../libs/asyncStorage/syncStorage";
 import { stopLocationTask } from "../../tasks/backgroundLocationTask";
+import { getStorageLocation } from "../../libs/asyncStorage/locationStorage";
+import { LatLng } from "react-native-maps";
+import { Map } from "../../components/Map";
 
 type RouteParamsProps = {
   id: string;
@@ -26,6 +29,7 @@ type RouteParamsProps = {
 
 export function Arrival() {
   const [dataNotSynced, setDataNotSynced] = useState(false);
+  const [coordinates, setCoordinates] = useState<LatLng[]>([]);
   const route = useRoute();
   const { id } = route.params as RouteParamsProps;
   const historic = useObject(Historic, new BSON.UUID(id));
@@ -46,10 +50,11 @@ export function Arrival() {
       },
     ]);
   }
-  function removeVehicleUsage() {
+  async function removeVehicleUsage() {
     realm.write(() => {
       realm.delete(historic);
     });
+    await stopLocationTask();
     goBack();
   }
 
@@ -61,11 +66,14 @@ export function Arrival() {
           "Não foi possível obter os dados do veículo"
         );
       }
+      const locations = await getStorageLocation();
       await stopLocationTask();
       realm.write(() => {
         historic.status = "arrival";
         historic.updated_at = new Date();
+        historic.coords.push(...locations);
       });
+      await stopLocationTask();
       Alert.alert("Sucesso", "Chegada registrada com sucesso");
       goBack();
     } catch (err) {
@@ -74,16 +82,30 @@ export function Arrival() {
     }
   }
 
+  async function getLocationsInfo() {
+    if (!historic) {
+      return;
+    }
+    const lastSync = await getLastSyncTimestamp();
+    const updated_at = historic?.updated_at?.getTime();
+    setDataNotSynced(updated_at! > lastSync!);
+    const locationsStorage = await getStorageLocation();
+    setCoordinates(locationsStorage);
+  }
+
   useEffect(() => {
-    getLastSyncTimestamp().then(lastSync =>
-      setDataNotSynced(historic!.updated_at?.getTime() > lastSync!)
-    );
-  }, []);
+    getLocationsInfo();
+  }, [historic]);
 
   return (
     <Container>
       <Content>
         <Header title={title} />
+        {
+          coordinates.length > 0 && (
+            <Map coordinates={coordinates} />
+          )
+        }
         <Label>Placa do veículo</Label>
         <LicensePlate>{historic?.license_plate}</LicensePlate>
         <Label>Finalidade</Label>
