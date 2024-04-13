@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/Button";
 import { Header } from "../../components/Header";
-import { useUser } from '@realm/react';
+import { useUser } from "@realm/react";
 import { LicensePlateInput } from "../../components/LicensePlateInput";
 import { TextAreaInput } from "../../components/TextAreaInput";
-import { Container, Content, Message } from "./styles";
-import { 
-   useForegroundPermissions,
-   requestBackgroundPermissionsAsync,
-   watchPositionAsync,
-   LocationAccuracy,
-   LocationSubscription,
-   LocationObjectCoords,
-   } from 'expo-location'
+import { Container, Content, Message, MessageContent } from "./styles";
+import {
+  useForegroundPermissions,
+  requestBackgroundPermissionsAsync,
+  watchPositionAsync,
+  LocationAccuracy,
+  LocationSubscription,
+  LocationObjectCoords,
+} from "expo-location";
 import {
   ScrollView,
   TextInput,
@@ -31,6 +31,7 @@ import { LocationInfo } from "../../components/LocationInfo";
 import { Car } from "phosphor-react-native";
 import { Map } from "../../components/Map";
 import { startLocationTask } from "../../tasks/backgroundLocationTask";
+import { openSettings } from "../../utils/openSettings";
 
 export function Departure() {
   const [description, setDescription] = useState("");
@@ -38,9 +39,11 @@ export function Departure() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [curretAddress, setCurrentAddress] = useState<string | null>(null);
-  const [currentCoords, setCurrentCoords] = useState<LocationObjectCoords | null>(null);
-  const [locationForegroundPermission, requestLocationForegroundPermission] = useForegroundPermissions();
-  const {goBack} = useNavigation();
+  const [currentCoords, setCurrentCoords] =
+    useState<LocationObjectCoords | null>(null);
+  const [locationForegroundPermission, requestLocationForegroundPermission] =
+    useForegroundPermissions();
+  const { goBack } = useNavigation();
   const realm = useRealm();
   const user = useUser();
 
@@ -53,42 +56,59 @@ export function Departure() {
     try {
       if (licensePlateValidate(lincesePlate)) {
         licensePlateRef.current?.focus();
-         return Alert.alert("Placa inválida", "Por favor, insira uma placa válida");
+        return Alert.alert(
+          "Placa inválida",
+          "Por favor, insira uma placa válida"
+        );
       }
-  
+
       if (description.trim().length === 0) {
         descriptionRef.current?.focus();
-        return Alert.alert("Campo obrigatório", "Por favor, insira a finalidade");
+        return Alert.alert(
+          "Campo obrigatório",
+          "Por favor, insira a finalidade"
+        );
       }
       if (!currentCoords?.latitude || !currentCoords?.longitude) {
-        return Alert.alert("Localização não encontrada", "Por favor, tente novamente");
+        return Alert.alert(
+          "Localização não encontrada",
+          "Por favor, tente novamente"
+        );
       }
       setIsRegistering(true);
       const backgroundPermissions = await requestBackgroundPermissionsAsync();
 
       if (!backgroundPermissions.granted) {
         setIsRegistering(false);
-        return Alert.alert("Permissão de localização", "Você precisa permitir o acesso à localização para utilizar essa funcionalidade");
+        return Alert.alert(
+          "Permissão de localização",
+          "Você precisa permitir o acesso à localização para utilizar essa funcionalidade",
+          [ {text: "Abrir configurações", onPress: openSettings}]
+        );
       }
 
       await startLocationTask();
       realm.write(() => {
-        realm.create("Historic", Historic.generate({
-          user_id: user!.id,
-          license_plate: lincesePlate.toUpperCase(),
-          description,
-          coords: [{
-            latitude: currentCoords.latitude,
-            longitude: currentCoords.longitude,
-            timestamp: new Date().getTime(),
-          }]
-        }));
-      })
+        realm.create(
+          "Historic",
+          Historic.generate({
+            user_id: user!.id,
+            license_plate: lincesePlate.toUpperCase(),
+            description,
+            coords: [
+              {
+                latitude: currentCoords.latitude,
+                longitude: currentCoords.longitude,
+                timestamp: new Date().getTime(),
+              },
+            ],
+          })
+        );
+      });
       Alert.alert("Saída", "Saída do veículo registrada com sucesso");
       goBack();
-
-    } catch(err: any) {
-      console.log(err.message)
+    } catch (err: any) {
+      console.log(err.message);
       Alert.alert("Erro", "Ocorreu um erro ao registrar a saída");
       setIsRegistering(false);
     }
@@ -96,66 +116,66 @@ export function Departure() {
 
   useEffect(() => {
     requestLocationForegroundPermission();
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (!locationForegroundPermission?.granted) {
-      return ;
-    };
+      return;
+    }
     let subscription: LocationSubscription;
-    watchPositionAsync({
-      accuracy: LocationAccuracy.Highest,
-      timeInterval: 1000,
-    }, (location) => {
-      setCurrentCoords(location.coords);
-       getAddressLocation(location.coords).then((address) => {
-        if (address) {
-          setCurrentAddress(address);
-        }
-       }).finally(( ) => setIsLoadingLocation(false));
-    }).then((response) => subscription = response);
-   return () => subscription.remove();
+    watchPositionAsync(
+      {
+        accuracy: LocationAccuracy.Highest,
+        timeInterval: 1000,
+      },
+      (location) => {
+        setCurrentCoords(location.coords);
+        getAddressLocation(location.coords)
+          .then((address) => {
+            if (address) {
+              setCurrentAddress(address);
+            }
+          })
+          .finally(() => setIsLoadingLocation(false));
+      }
+    ).then((response) => (subscription = response));
+    return () => subscription.remove();
   }, [locationForegroundPermission]);
 
   if (!locationForegroundPermission?.granted) {
     return (
       <Container>
         <Header title="Saída" />
-        <Message>
-          Você precisa permitir o acesso à localização para utilizar essa funcionalidade.
-          Por favor, habilite a permissão de localização nas configurações do seu dispositivo.
-        </Message>
+        <MessageContent>
+          <Message>
+            Você precisa permitir o acesso à localização para utilizar essa
+            funcionalidade. Por favor, habilite a permissão de localização nas
+            configurações do seu dispositivo.
+          </Message>
+          <Button onPress={openSettings} title="Abrir Configurações" />
+        </MessageContent>
       </Container>
-    )
+    );
   }
 
   if (isLoadingLocation) {
-    return (
-      <Loading />
-    )
+    return <Loading />;
   }
 
   return (
     <Container>
       <Header title="Saída" />
-      <KeyboardAwareScrollView extraHeight={100}
-      >
+      <KeyboardAwareScrollView extraHeight={100}>
         <ScrollView>
-          {
-            currentCoords && (
-              <Map coordinates={[currentCoords]} />
-            )
-          }
+          {currentCoords && <Map coordinates={[currentCoords]} />}
           <Content>
-            {
-              curretAddress && (
-                <LocationInfo
-                  icon={Car}
-                  label="Localização atual"
-                  description={curretAddress}
-                />
-              )
-            }
+            {curretAddress && (
+              <LocationInfo
+                icon={Car}
+                label="Localização atual"
+                description={curretAddress}
+              />
+            )}
             <LicensePlateInput
               ref={licensePlateRef}
               returnKeyType="next"
@@ -173,7 +193,11 @@ export function Departure() {
               label="Finalidade"
               onChangeText={setDescription}
             />
-            <Button isLoading={isRegistering} onPress={handleDeparture} title="Registrar Saída" />
+            <Button
+              isLoading={isRegistering}
+              onPress={handleDeparture}
+              title="Registrar Saída"
+            />
           </Content>
         </ScrollView>
       </KeyboardAwareScrollView>
